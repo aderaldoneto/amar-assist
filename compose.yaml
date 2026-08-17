@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./src:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - amar-assist
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./src:/var/www/html:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - amar-assist
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: amar_assist
+      MYSQL_USER: amar_assist
+      MYSQL_PASSWORD: amar_assist
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - amar-assist
+
+  node:
+    image: node:22-alpine
+    working_dir: /var/www/html
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./src:/var/www/html
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - amar-assist
+
+volumes:
+  mysql-data:
+
+networks:
+  amar-assist:
+    driver: bridge
