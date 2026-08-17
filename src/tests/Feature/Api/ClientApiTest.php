@@ -4,15 +4,12 @@ namespace Tests\Feature\Api;
 
 use App\Models\Client;
 use App\Models\Contract;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 
 class ClientApiTest extends TestCase
 {
-    use DatabaseTransactions;
-
     protected function setUp(): void
     {
         parent::setUp();

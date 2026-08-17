@@ -6,13 +6,10 @@ use App\Models\Charge;
 use App\Models\Client;
 use App\Models\Contract;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class BillingRelationshipsTest extends TestCase
 {
-    use DatabaseTransactions;
-
     public function test_client_can_have_contracts(): void
     {
         $client = Client::create([

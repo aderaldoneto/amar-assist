@@ -3,14 +3,11 @@
 namespace Tests\Feature\Api;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AuthApiTest extends TestCase
 {
-    use DatabaseTransactions;
-
     public function test_guest_cannot_access_protected_routes(): void
     {
         $this->getJson('/api/clients')

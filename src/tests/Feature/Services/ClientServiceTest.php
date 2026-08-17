@@ -6,13 +6,10 @@ use App\Models\Client;
 use App\Models\Contract;
 use App\Services\ClientService;
 use DomainException;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class ClientServiceTest extends TestCase
 {
-    use DatabaseTransactions;
-
     public function test_client_without_contract_can_be_deactivated(): void
     {
         $client = Client::create([

@@ -6,15 +6,12 @@ use App\Models\Charge;
 use App\Models\Client;
 use App\Models\Contract;
 use Carbon\CarbonImmutable;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 
 class ChargeApiTest extends TestCase
 {
-    use DatabaseTransactions;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -58,10 +55,18 @@ class ChargeApiTest extends TestCase
 
         $this->assertDatabaseHas('charges', [
             'contract_id' => $contract->id,
-            'due_date' => '2026-02-28',
             'penalty_amount' => '5.00',
             'status' => Charge::STATUS_OPEN,
         ]);
+
+        $charge = Charge::query()
+            ->where('contract_id', $contract->id)
+            ->firstOrFail();
+
+        $this->assertSame(
+            '2026-02-28',
+            $charge->due_date->toDateString()
+        );
     }
 
     public function test_it_requires_detail_for_selected_method(): void
