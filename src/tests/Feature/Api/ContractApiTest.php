@@ -6,10 +6,21 @@ use App\Models\Client;
 use App\Models\Contract;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
+use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 
 class ContractApiTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Sanctum::actingAs(
+            User::factory()->create()
+        );
+    }
 
     public function test_it_creates_pf_contract(): void
     {
