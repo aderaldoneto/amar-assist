@@ -11,5 +11,11 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AdminUserSeeder::class,
         ]);
+
+        if (app()->environment('local')) {
+            $this->call([
+                DemoBillingSeeder::class,
+            ]);
+        }
     }
 }
