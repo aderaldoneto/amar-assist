@@ -5,6 +5,7 @@ import {
 
 import LoginView from '../views/LoginView.vue';
 import ClientsView from '../views/ClientsView.vue';
+import ContractsView from '../views/ContractsView.vue';
 import ChargesView from '../views/ChargesView.vue';
 
 const router = createRouter({
@@ -26,6 +27,14 @@ const router = createRouter({
             path: '/clients',
             name: 'clients',
             component: ClientsView,
+            meta: {
+                requiresAuth: true,
+            },
+        },
+        {
+            path: '/contracts',
+            name: 'contracts',
+            component: ContractsView,
             meta: {
                 requiresAuth: true,
             },

@@ -16,17 +16,19 @@ class ContractController extends Controller
     {
         $filters = $request->validate([
             'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+            'per_page' => ['nullable', 'integer', 'between:1,100'],
         ]);
 
         $contracts = Contract::query()
             ->with('client')
+            ->withCount('charges')
             ->when(
                 $filters['client_id'] ?? null,
                 fn ($query, $clientId) => $query
                     ->where('client_id', $clientId)
             )
             ->latest()
-            ->paginate(15)
+            ->paginate($filters['per_page'] ?? 15)
             ->withQueryString();
 
         return response()->json($contracts);

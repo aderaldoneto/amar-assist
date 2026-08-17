@@ -48,6 +48,10 @@ async function logout() {
                     Clientes
                 </RouterLink>
 
+                <RouterLink to="/contracts">
+                    Contratos
+                </RouterLink>
+
                 <RouterLink to="/charges">
                     Cobranças
                 </RouterLink>

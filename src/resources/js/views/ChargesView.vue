@@ -3,9 +3,16 @@ import { onMounted, reactive, ref } from 'vue';
 import api from '../services/api';
 
 const charges = ref([]);
+const contracts = ref([]);
 const loading = ref(false);
+const loadingContracts = ref(false);
 const payingId = ref(null);
+const showCreateForm = ref(false);
+const saving = ref(false);
 const error = ref('');
+const success = ref('');
+const validationErrors = ref({});
+const amountInput = ref('');
 const currentPage = ref(1);
 const lastPage = ref(1);
 
@@ -13,6 +20,115 @@ const filters = reactive({
     status: '',
     payment_method: '',
 });
+
+function currentMonth() {
+    const date = new Date();
+
+    return `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+    ).padStart(2, '0')}`;
+}
+
+const chargeForm = reactive({
+    contract_id: '',
+    payment_method: 'pix',
+    amount: '',
+    reference_month: currentMonth(),
+    barcode: '',
+    pix_key: '',
+    card_holder_name: '',
+    card_brand: '',
+    card_last_four: '',
+});
+
+function resetChargeForm() {
+    chargeForm.contract_id = '';
+    chargeForm.payment_method = 'pix';
+    chargeForm.amount = '';
+    amountInput.value = '';
+    chargeForm.reference_month = currentMonth();
+    chargeForm.barcode = '';
+    chargeForm.pix_key = '';
+    chargeForm.card_holder_name = '';
+    chargeForm.card_brand = '';
+    chargeForm.card_last_four = '';
+    validationErrors.value = {};
+}
+
+function maskAmount(event) {
+    const digits = event.target.value
+        .replace(/\D/g, '')
+        .slice(0, 12);
+
+    if (! digits) {
+        amountInput.value = '';
+        chargeForm.amount = '';
+        return;
+    }
+
+    const amount = Number(digits) / 100;
+
+    amountInput.value = new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    }).format(amount);
+    chargeForm.amount = amount.toFixed(2);
+}
+
+function toggleCreateForm() {
+    showCreateForm.value = ! showCreateForm.value;
+    error.value = '';
+    success.value = '';
+
+    if (! showCreateForm.value) {
+        resetChargeForm();
+    }
+}
+
+async function loadContracts() {
+    loadingContracts.value = true;
+
+    try {
+        const response = await api.get('/contracts', {
+            params: { per_page: 100 },
+        });
+
+        contracts.value = response.data.data;
+    } catch (exception) {
+        error.value =
+            exception.response?.data?.message
+            ?? 'Não foi possível carregar os contratos.';
+    } finally {
+        loadingContracts.value = false;
+    }
+}
+
+async function createCharge() {
+    saving.value = true;
+    error.value = '';
+    success.value = '';
+    validationErrors.value = {};
+
+    try {
+        await api.post('/charges', chargeForm);
+
+        resetChargeForm();
+        showCreateForm.value = false;
+        filters.status = '';
+        filters.payment_method = '';
+
+        await loadCharges(1);
+        success.value = 'Cobrança cadastrada com sucesso.';
+    } catch (exception) {
+        validationErrors.value =
+            exception.response?.data?.errors ?? {};
+        error.value =
+            exception.response?.data?.message
+            ?? 'Não foi possível cadastrar a cobrança.';
+    } finally {
+        saving.value = false;
+    }
+}
 
 async function loadCharges(page = 1) {
     loading.value = true;
@@ -93,7 +209,10 @@ function methodLabel(method) {
     }[method] ?? method;
 }
 
-onMounted(() => loadCharges());
+onMounted(() => {
+    loadCharges();
+    loadContracts();
+});
 </script>
 
 <template>
@@ -105,7 +224,212 @@ onMounted(() => loadCharges());
                     Cobranças abertas e vencidas aparecem primeiro.
                 </p>
             </div>
+
+            <button
+                class="primary"
+                type="button"
+                @click="toggleCreateForm"
+            >
+                {{
+                    showCreateForm
+                        ? 'Cancelar cadastro'
+                        : 'Nova cobrança'
+                }}
+            </button>
         </header>
+
+        <form
+            v-if="showCreateForm"
+            class="charge-form"
+            @submit.prevent="createCharge"
+        >
+            <div class="form-heading">
+                <h2>Nova cobrança</h2>
+                <p>
+                    O vencimento e a multa serão calculados
+                    conforme o ciclo do contrato.
+                </p>
+            </div>
+
+            <div class="form-grid">
+                <div class="field field-wide">
+                    <label for="charge-contract">Contrato</label>
+                    <select
+                        id="charge-contract"
+                        v-model="chargeForm.contract_id"
+                        :disabled="loadingContracts"
+                        required
+                    >
+                        <option value="" disabled>
+                            {{
+                                loadingContracts
+                                    ? 'Carregando contratos...'
+                                    : 'Selecione um contrato'
+                            }}
+                        </option>
+                        <option
+                            v-for="contract in contracts"
+                            :key="contract.id"
+                            :value="contract.id"
+                        >
+                            #{{ contract.id }} —
+                            {{ contract.client.name }} —
+                            {{ contract.type }} — dia
+                            {{ contract.billing_day }}
+                        </option>
+                    </select>
+                    <small v-if="validationErrors.contract_id" class="field-error">
+                        {{ validationErrors.contract_id[0] }}
+                    </small>
+                    <small v-else-if="! loadingContracts && contracts.length === 0">
+                        Cadastre um contrato antes de gerar uma cobrança.
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label for="charge-month">Mês de referência</label>
+                    <input
+                        id="charge-month"
+                        v-model="chargeForm.reference_month"
+                        type="month"
+                        required
+                    >
+                    <small v-if="validationErrors.reference_month" class="field-error">
+                        {{ validationErrors.reference_month[0] }}
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label for="charge-amount">Valor</label>
+                    <input
+                        id="charge-amount"
+                        :value="amountInput"
+                        type="text"
+                        inputmode="numeric"
+                        placeholder="R$ 0,00"
+                        required
+                        @input="maskAmount"
+                    >
+                    <small v-if="validationErrors.amount" class="field-error">
+                        {{ validationErrors.amount[0] }}
+                    </small>
+                </div>
+
+                <div class="field">
+                    <label for="charge-method">Forma de pagamento</label>
+                    <select
+                        id="charge-method"
+                        v-model="chargeForm.payment_method"
+                    >
+                        <option value="pix">Pix</option>
+                        <option value="boleto">Boleto</option>
+                        <option value="card">Cartão</option>
+                    </select>
+                    <small v-if="validationErrors.payment_method" class="field-error">
+                        {{ validationErrors.payment_method[0] }}
+                    </small>
+                </div>
+
+                <div
+                    v-if="chargeForm.payment_method === 'pix'"
+                    class="field field-wide"
+                >
+                    <label for="charge-pix-key">Chave Pix</label>
+                    <input
+                        id="charge-pix-key"
+                        v-model.trim="chargeForm.pix_key"
+                        type="text"
+                        maxlength="255"
+                        required
+                    >
+                    <small v-if="validationErrors.pix_key" class="field-error">
+                        {{ validationErrors.pix_key[0] }}
+                    </small>
+                </div>
+
+                <div
+                    v-if="chargeForm.payment_method === 'boleto'"
+                    class="field field-wide"
+                >
+                    <label for="charge-barcode">Código de barras</label>
+                    <input
+                        id="charge-barcode"
+                        v-model.trim="chargeForm.barcode"
+                        type="text"
+                        maxlength="255"
+                        required
+                    >
+                    <small v-if="validationErrors.barcode" class="field-error">
+                        {{ validationErrors.barcode[0] }}
+                    </small>
+                </div>
+
+                <template v-if="chargeForm.payment_method === 'card'">
+                    <div class="field field-wide">
+                        <label for="charge-card-holder">Nome do titular</label>
+                        <input
+                            id="charge-card-holder"
+                            v-model.trim="chargeForm.card_holder_name"
+                            type="text"
+                            maxlength="255"
+                            required
+                        >
+                        <small v-if="validationErrors.card_holder_name" class="field-error">
+                            {{ validationErrors.card_holder_name[0] }}
+                        </small>
+                    </div>
+
+                    <div class="field">
+                        <label for="charge-card-brand">Bandeira</label>
+                        <input
+                            id="charge-card-brand"
+                            v-model.trim="chargeForm.card_brand"
+                            type="text"
+                            maxlength="30"
+                            required
+                        >
+                        <small v-if="validationErrors.card_brand" class="field-error">
+                            {{ validationErrors.card_brand[0] }}
+                        </small>
+                    </div>
+
+                    <div class="field">
+                        <label for="charge-card-last-four">Últimos 4 dígitos</label>
+                        <input
+                            id="charge-card-last-four"
+                            v-model.trim="chargeForm.card_last_four"
+                            type="text"
+                            inputmode="numeric"
+                            maxlength="4"
+                            pattern="[0-9]{4}"
+                            required
+                        >
+                        <small v-if="validationErrors.card_last_four" class="field-error">
+                            {{ validationErrors.card_last_four[0] }}
+                        </small>
+                    </div>
+                </template>
+            </div>
+
+            <div class="form-actions">
+                <button
+                    class="secondary"
+                    type="button"
+                    :disabled="saving"
+                    @click="toggleCreateForm"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    class="primary"
+                    type="submit"
+                    :disabled="saving || contracts.length === 0"
+                >
+                    {{ saving ? 'Salvando...' : 'Salvar cobrança' }}
+                </button>
+            </div>
+        </form>
 
         <form
             class="filters"
@@ -160,6 +484,14 @@ onMounted(() => loadCharges());
             role="alert"
         >
             {{ error }}
+        </p>
+
+        <p
+            v-if="success"
+            class="message success"
+            role="status"
+        >
+            {{ success }}
         </p>
 
         <p
@@ -296,6 +628,13 @@ onMounted(() => loadCharges());
     padding: 32px 24px;
 }
 
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 24px;
+}
+
 h1 {
     margin: 0 0 8px;
 }
@@ -303,6 +642,46 @@ h1 {
 p {
     margin: 0;
     color: #64748b;
+}
+
+.charge-form {
+    margin-top: 28px;
+    padding: 24px;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #eff6ff;
+}
+
+.form-heading h2 {
+    margin: 0 0 6px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.field {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+}
+
+.field-wide {
+    grid-column: 1 / -1;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.field-error {
+    color: #b91c1c;
 }
 
 .filters {
@@ -328,6 +707,7 @@ label {
     font-weight: 700;
 }
 
+input,
 select {
     min-height: 42px;
     padding: 8px 10px;
@@ -430,6 +810,10 @@ tr.overdue {
     color: #b91c1c;
 }
 
+.success {
+    color: #166534;
+}
+
 .pagination {
     display: flex;
     justify-content: center;
@@ -444,6 +828,15 @@ button:disabled {
 }
 
 @media (max-width: 700px) {
+    .page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
     .filters {
         align-items: stretch;
         flex-direction: column;

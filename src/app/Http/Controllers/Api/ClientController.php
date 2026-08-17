@@ -27,6 +27,7 @@ class ClientController extends Controller
                     Client::STATUS_INACTIVE,
                 ]),
             ],
+            'per_page' => ['nullable', 'integer', 'between:1,100'],
         ]);
 
         $document = isset($filters['document'])
@@ -70,7 +71,7 @@ class ClientController extends Controller
                             ->where('status', $status)
                     )
                     ->orderBy('name')
-                    ->paginate(15)
+                    ->paginate($filters['per_page'] ?? 15)
                     ->withQueryString();
             }
         );

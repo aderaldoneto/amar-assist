@@ -73,6 +73,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    user: www-data
     working_dir: /var/www/html
     volumes:
       - ./src:/var/www/html
