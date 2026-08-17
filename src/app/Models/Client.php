@@ -21,6 +21,10 @@ class Client extends Model
         'status',
     ];
 
+    protected $attributes = [
+        'status' => self::STATUS_ACTIVE,
+    ];
+
     public function contracts(): HasMany
     {
         return $this->hasMany(Contract::class);
