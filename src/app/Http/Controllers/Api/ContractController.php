@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Contract;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ContractController extends Controller
 {
@@ -57,6 +58,8 @@ class ContractController extends Controller
             'type' => $data['type'],
             'billing_day' => $data['billing_day'],
         ]);
+
+        Cache::increment('clients.index.version');
 
         return response()->json(
             $contract->load('client'),

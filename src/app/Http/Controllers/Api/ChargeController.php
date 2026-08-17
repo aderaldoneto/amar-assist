@@ -9,6 +9,7 @@ use App\Services\ChargeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Jobs\LogChargeCreated;
 
 class ChargeController extends Controller
 {
@@ -89,7 +90,7 @@ class ChargeController extends Controller
         $charge = $service->create(
             $request->validated()
         );
-
+        LogChargeCreated::dispatch($charge);
         return response()->json($charge, 201);
     }
 

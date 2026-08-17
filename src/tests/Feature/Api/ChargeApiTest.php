@@ -9,6 +9,8 @@ use Carbon\CarbonImmutable;
 use Tests\TestCase;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
+use App\Jobs\LogChargeCreated;
+use Illuminate\Support\Facades\Queue;
 
 class ChargeApiTest extends TestCase
 {
@@ -27,9 +29,11 @@ class ChargeApiTest extends TestCase
 
         parent::tearDown();
     }
-
+    
     public function test_it_creates_overdue_pix_charge_with_fee(): void
     {
+        Queue::fake();
+
         CarbonImmutable::setTestNow('2026-03-05 12:00:00');
 
         $contract = $this->createContract(31);
@@ -58,6 +62,13 @@ class ChargeApiTest extends TestCase
             'penalty_amount' => '5.00',
             'status' => Charge::STATUS_OPEN,
         ]);
+
+        Queue::assertPushed(
+            LogChargeCreated::class,
+            function (LogChargeCreated $job): bool {
+                return $job->charge->amount === '100.00';
+            }
+        );
 
         $charge = Charge::query()
             ->where('contract_id', $contract->id)
