@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ClientController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ContractController;
+use App\Http\Controllers\Api\ChargeController;
 
 Route::apiResource('clients', ClientController::class)
     ->only([
@@ -18,3 +19,15 @@ Route::apiResource('contracts', ContractController::class)
         'store',
         'show',
     ]);
+
+Route::apiResource('charges', ChargeController::class)
+    ->only([
+        'index',
+        'store',
+        'show',
+    ]);
+
+Route::patch(
+    'charges/{charge}/pay',
+    [ChargeController::class, 'pay']
+)->name('charges.pay');

@@ -28,6 +28,16 @@ class Charge extends Model
         'paid_at',
     ];
 
+    protected $attributes = [
+        'penalty_amount' => '0.00',
+        'status' => self::STATUS_OPEN,
+    ];
+
+    protected $appends = [
+        'total_amount',
+        'is_overdue',
+    ];
+
     protected $casts = [
         'amount' => 'decimal:2',
         'penalty_amount' => 'decimal:2',
@@ -44,4 +54,20 @@ class Charge extends Model
     {
         return $this->hasOne(ChargeDetail::class);
     }
+
+    public function getTotalAmountAttribute(): string
+    {
+        return bcadd(
+            (string) $this->amount,
+            (string) $this->penalty_amount,
+            2
+        );
+    }
+
+    public function getIsOverdueAttribute(): bool
+    {
+        return $this->status === self::STATUS_OPEN
+            && $this->due_date->isBefore(today());
+    }
+    
 }
